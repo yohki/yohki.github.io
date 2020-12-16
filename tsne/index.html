@@ -5,11 +5,13 @@
     <body>
         <script>
 function init() {
-    let metadata = {};
-    d3.csv("bravia.csv").then(function(data) {
-        metadata = data;
-    })
-    d3.json("bravia.json").then(function(data) {
+    Promise.all([
+        d3.csv("bravia.csv"), 
+        d3.json("bravia.json")])
+    .then(function(values) {
+        let csv = values[0];
+        let json = values[1];
+
         let width = window.innerWidth;
         let height = window.innerHeight;
         let imageS = 32;
@@ -20,41 +22,27 @@ function init() {
         let xScale = d3.scaleLinear().domain([0, 1]).range([0, width]);
         let yScale = d3.scaleLinear().domain([0, 1]).range([0, height]);
 
-        let defs = svg.append('defs');
-        let circle = defs
-            .append('circle')
-            .attr('id', 'circle')
-            .attr('r', 50)
-            .attr('cx', 100)
-            .attr('cy', 100);
-        defs.append('clipPath')
-            .attr('id', 'clip')
-            .append('use')
-            .attr('xlink:href', '#circle');
-
         let captions = g.selectAll("text")
-            .data(data)
+            .data(json)
             .enter()
             .append("text")
-            .text((d, i) => metadata[i].model + " (" + metadata[i].year + ")")
+            .text((d, i) => csv[i].model + " (" + csv[i].year + ")")
             .attr("x", d => xScale(d.position[0]))
             .attr("y", d => yScale(d.position[1]))
             .attr("font-family", "sans-serif")
             .attr("font-size", "12px")
 
         let images = g.selectAll("image")
-            .data(data)
+            .data(json)
             .enter()
             .append("image")
             .attr("xlink:href", (d, i) => "images/" + d.file)
             .attr("width", imageS)
             .attr("height", imageS)
             .attr("x", d => xScale(d.position[0]) - imageS / 2)
-            .attr("y", d => yScale(d.position[1])- imageS / 2)
+            .attr("y", d => yScale(d.position[1]) - imageS / 2)
             .on("mouseover", onMouseOver)
             .on("mouseout", onMouseOut)
-
-
             
         svg.call(d3.zoom()
             .extent([[0, 0], [width, height]])
@@ -72,7 +60,7 @@ function init() {
                 .attr("width", imageL)
                 .attr("height", imageL)
                 .attr("x", d => xScale(d.position[0]) - imageL / 2)
-                .attr("y", d => yScale(d.position[1])- imageL / 2)
+                .attr("y", d => yScale(d.position[1]) - imageL / 2)
         }
 
         function onMouseOut() {
@@ -81,7 +69,7 @@ function init() {
                 .attr("width", imageS)
                 .attr("height", imageS)
                 .attr("x", d => xScale(d.position[0]) - imageS / 2)
-                .attr("y", d => yScale(d.position[1])- imageS / 2)
+                .attr("y", d => yScale(d.position[1]) - imageS / 2)
         }
     });
 }
