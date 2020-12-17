@@ -1,6 +1,12 @@
 <html>
     <head>
         <script src="https://d3js.org/d3.v6.min.js"></script>
+        <style type="text/css">
+        @font-face {
+            font-family: "SST";
+            src: url("SST-Roman.otf");
+        }
+        </style>
     </head>
     <body>
         <script>
@@ -21,29 +27,41 @@ function init() {
 
         let xScale = d3.scaleLinear().domain([0, 1]).range([0, width]);
         let yScale = d3.scaleLinear().domain([0, 1]).range([0, height]);
+        let cScale = d3.scaleLinear().domain([2008, 2020]).range([0, 1]);
 
-        let captions = g.selectAll("text")
+        let elements = g.selectAll("g")
             .data(json)
             .enter()
-            .append("text")
+            .append("g")
+            .on("mouseover", onMouseOver)
+            .on("mouseout", onMouseOut)
+        
+        elements.append("text")
             .text((d, i) => csv[i].model + " (" + csv[i].year + ")")
             .attr("x", d => xScale(d.position[0]))
-            .attr("y", d => yScale(d.position[1]))
-            .attr("font-family", "sans-serif")
+            .attr("y", d => yScale(d.position[1]) - 4)
+            .attr("font-family", "SST")
             .attr("font-size", "12px")
-
-        let images = g.selectAll("image")
-            .data(json)
-            .enter()
-            .append("image")
+            .attr("visibility", "hidden")
+        elements.append("image")
             .attr("xlink:href", (d, i) => "images/" + d.file)
             .attr("width", imageS)
             .attr("height", imageS)
             .attr("x", d => xScale(d.position[0]) - imageS / 2)
             .attr("y", d => yScale(d.position[1]) - imageS / 2)
-            .on("mouseover", onMouseOver)
-            .on("mouseout", onMouseOut)
-            
+        
+        elements.append("rect")
+            .attr("width", imageS)
+            .attr("height", imageS)
+            .attr("x", d => xScale(d.position[0]) - imageS / 2)
+            .attr("y", d => yScale(d.position[1]) - imageS / 2)
+            .attr("fill", "none")
+            .attr("stroke-width", 1)
+            .attr("stroke", function(d, i) {
+                let c = cScale(csv[i].year)
+                return d3.interpolateSpectral(c)
+            })
+
         svg.call(d3.zoom()
             .extent([[0, 0], [width, height]])
             .scaleExtent([1, 8])
@@ -54,22 +72,31 @@ function init() {
         }
 
         function onMouseOver(d, i) {
-            d3.select(this.parentNode).raise()
-            d3.select(this)
+            d3.select(this).raise().selectAll("image,rect")
                 .transition().duration('200')
                 .attr("width", imageL)
                 .attr("height", imageL)
                 .attr("x", d => xScale(d.position[0]) - imageL / 2)
                 .attr("y", d => yScale(d.position[1]) - imageL / 2)
+            d3.select(this).selectAll("text")
+                .transition().duration('200')
+                .attr("x", d => xScale(d.position[0]) - imageL / 2)
+                .attr("y", d => yScale(d.position[1]) - imageL / 2 - 4)
+                .attr("visibility", "visible")
         }
 
         function onMouseOut() {
-            d3.select(this)
+            d3.select(this).lower().selectAll("image,rect")
                 .transition().duration('100')
                 .attr("width", imageS)
                 .attr("height", imageS)
                 .attr("x", d => xScale(d.position[0]) - imageS / 2)
                 .attr("y", d => yScale(d.position[1]) - imageS / 2)
+            d3.select(this).selectAll("text")
+                .transition().duration('200')
+                .attr("x", d => xScale(d.position[0]) - imageS / 2)
+                .attr("y", d => yScale(d.position[1]) - imageS / 2 - 4)
+                .attr("visibility", "hidden")
         }
     });
 }
