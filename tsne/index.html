@@ -59,7 +59,7 @@ function init() {
             .attr("x", d => xScale(d.position[0]) - imageS / 2)
             .attr("y", d => yScale(d.position[1]) - imageS / 2)
             .attr("fill", "none")
-            .attr("stroke-width", 1)
+            .attr("stroke-width", 1.5)
             .attr("stroke", function(d) {
                 let key = d.file.substring(0, d.file.length - 4)
                 let c = cScale(csv.get(key).year)
