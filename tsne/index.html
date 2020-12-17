@@ -15,7 +15,7 @@ function init() {
         d3.csv("bravia.csv"), 
         d3.json("bravia.json")])
     .then(function(values) {
-        let csv = values[0];
+        let csv = d3.index(values[0], d => d.file);
         let json = values[1];
 
         let width = window.innerWidth;
@@ -37,7 +37,10 @@ function init() {
             .on("mouseout", onMouseOut)
         
         elements.append("text")
-            .text((d, i) => csv[i].model + " (" + csv[i].year + ")")
+            .text(function(d) {
+                let key = d.file.substring(0, d.file.length - 4)
+                return csv.get(key).model + " (" + csv.get(key).year + ")"
+            })
             .attr("x", d => xScale(d.position[0]))
             .attr("y", d => yScale(d.position[1]) - 4)
             .attr("font-family", "SST")
@@ -57,8 +60,9 @@ function init() {
             .attr("y", d => yScale(d.position[1]) - imageS / 2)
             .attr("fill", "none")
             .attr("stroke-width", 1)
-            .attr("stroke", function(d, i) {
-                let c = cScale(csv[i].year)
+            .attr("stroke", function(d) {
+                let key = d.file.substring(0, d.file.length - 4)
+                let c = cScale(csv.get(key).year)
                 return d3.interpolateSpectral(c)
             })
 
