@@ -6,6 +6,16 @@
             font-family: "SST";
             src: url("SST-Roman.otf");
         }
+
+        @font-face {
+            font-family: "SST Bold";
+            src: url("SST-Bold.otf");
+        }
+        
+        body {
+            background-color: hsl(0, 0%, 94%);
+        }
+
         </style>
     </head>
     <body>
@@ -21,43 +31,42 @@ function init() {
         let width = window.innerWidth;
         let height = window.innerHeight;
         let imageS = 32;
+        let imageM = 64;
         let imageL = 192;
+        let startYear = 2008;
+        let endYear = 2020;
+
         let svg = d3.select("body").append("svg").attr("viewBox", [0, 0, width, height]);
         let g = svg.append("g");
 
         let xScale = d3.scaleLinear().domain([0, 1]).range([0, width]);
         let yScale = d3.scaleLinear().domain([0, 1]).range([0, height]);
-        let cScale = d3.scaleLinear().domain([2008, 2020]).range([0, 1]);
+        let cScale = d3.scaleLinear().domain([startYear, endYear]).range([0, 1]);
 
         let elements = g.selectAll("g")
             .data(json)
             .enter()
             .append("g")
+            .attr("class", function(d) {
+                let key = d.file.substring(0, d.file.length - 4)
+                return "y" + csv.get(key).year
+            })
             .on("mouseover", onMouseOver)
             .on("mouseout", onMouseOut)
-        
-        elements.append("text")
-            .text(function(d) {
-                let key = d.file.substring(0, d.file.length - 4)
-                return csv.get(key).model + " (" + csv.get(key).year + ")"
-            })
-            .attr("x", d => xScale(d.position[0]))
-            .attr("y", d => yScale(d.position[1]) - 4)
-            .attr("font-family", "SST")
-            .attr("font-size", "12px")
-            .attr("visibility", "hidden")
         elements.append("image")
             .attr("xlink:href", (d, i) => "images/" + d.file)
             .attr("width", imageS)
             .attr("height", imageS)
             .attr("x", d => xScale(d.position[0]) - imageS / 2)
             .attr("y", d => yScale(d.position[1]) - imageS / 2)
-        
+            .attr("fill-opacity", 0.8)
         elements.append("rect")
             .attr("width", imageS)
             .attr("height", imageS)
             .attr("x", d => xScale(d.position[0]) - imageS / 2)
             .attr("y", d => yScale(d.position[1]) - imageS / 2)
+            .attr("rx", 4)
+            .attr("ry", 4)
             .attr("fill", "none")
             .attr("stroke-width", 1.5)
             .attr("stroke", function(d) {
@@ -65,6 +74,41 @@ function init() {
                 let c = cScale(csv.get(key).year)
                 return d3.interpolateSpectral(c)
             })
+        elements.append("text")
+            .text(function(d) {
+                let key = d.file.substring(0, d.file.length - 4)
+                return csv.get(key).model + " (" + csv.get(key).year + ")"
+            })
+            .attr("x", d => xScale(d.position[0]) - imageL / 2 + 8)
+            .attr("y", d => yScale(d.position[1]) - imageL / 2 + 20)
+            .attr("font-family", "SST")
+            .attr("font-size", "12px")
+            .attr("visibility", "hidden")
+            .attr("fill-opacity", 0)
+
+        var years = [];
+        for (var yr = startYear; yr <= endYear; yr++) {
+            years.push(yr)
+        }
+        let legendSize = 20
+        let legend = svg.append("g").selectAll("g")
+            .data(years)
+            .enter()
+            .append("g")
+            .on("mouseover", onLegendMouseOver)
+            .on("mouseout", onLegendMouseOut)
+        legend.append("rect")
+            .attr("x", 5)
+            .attr("y", (d, i) => 3 + i * (legendSize + 5))
+            .attr("width", legendSize)
+            .attr("height", legendSize)
+            .attr("fill", (d, i) => d3.interpolateSpectral(cScale(d)))
+        legend.append("text")
+            .attr("x", 32)
+            .attr("y", (d, i) => legendSize + i * (legendSize + 5) - 2)
+            .text(d => d)
+            .attr("font-family", "SST")
+            .attr("font-size", "14px")
 
         svg.call(d3.zoom()
             .extent([[0, 0], [width, height]])
@@ -76,31 +120,60 @@ function init() {
         }
 
         function onMouseOver(d, i) {
-            d3.select(this).raise().selectAll("image,rect")
+            d3.select(this).raise().selectAll("image, rect")
                 .transition().duration('200')
                 .attr("width", imageL)
                 .attr("height", imageL)
                 .attr("x", d => xScale(d.position[0]) - imageL / 2)
                 .attr("y", d => yScale(d.position[1]) - imageL / 2)
             d3.select(this).selectAll("text")
-                .transition().duration('200')
-                .attr("x", d => xScale(d.position[0]) - imageL / 2)
-                .attr("y", d => yScale(d.position[1]) - imageL / 2 - 4)
+                .transition().duration('200').delay('100')
+                .attr("fill-opacity", 1.0)
                 .attr("visibility", "visible")
         }
 
         function onMouseOut() {
-            d3.select(this).lower().selectAll("image,rect")
+            d3.select(this).lower().selectAll("image, rect")
                 .transition().duration('100')
                 .attr("width", imageS)
                 .attr("height", imageS)
                 .attr("x", d => xScale(d.position[0]) - imageS / 2)
                 .attr("y", d => yScale(d.position[1]) - imageS / 2)
             d3.select(this).selectAll("text")
-                .transition().duration('200')
-                .attr("x", d => xScale(d.position[0]) - imageS / 2)
-                .attr("y", d => yScale(d.position[1]) - imageS / 2 - 4)
+                .transition().duration('100')
+                .attr("fill-opacity", 0.0)
                 .attr("visibility", "hidden")
+        }
+
+        function onLegendMouseOver() {
+            d3.select(this).select("text")
+                .transition().duration('100')
+                .attr("font-family", "SST Bold")
+                .attr("x", 36)
+
+            let year = "y" + d3.select(this).select("text").text()
+            d3.selectAll("." + year).selectAll("image, rect")
+                .raise()
+                .transition().duration('200')
+                .attr("width", imageM)
+                .attr("height", imageM)
+                .attr("x", d => xScale(d.position[0]) - imageM / 2)
+                .attr("y", d => yScale(d.position[1]) - imageM / 2)
+        }
+
+        function onLegendMouseOut() {
+            d3.select(this).select("text")
+                .transition().duration('100')
+                .attr("font-family", "SST")
+                .attr("x", 32)
+
+            let year = "y" + d3.select(this).select("text").text()
+            d3.selectAll("." + year).selectAll("image, rect")
+                .transition().duration('100')
+                .attr("width", imageS)
+                .attr("height", imageS)
+                .attr("x", d => xScale(d.position[0]) - imageS / 2)
+                .attr("y", d => yScale(d.position[1]) - imageS / 2)
         }
     });
 }
