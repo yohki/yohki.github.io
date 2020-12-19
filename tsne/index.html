@@ -153,7 +153,6 @@ function init() {
 
             let year = "y" + d3.select(this).select("text").text()
             d3.selectAll("." + year).selectAll("image, rect")
-                .raise()
                 .transition().duration('200')
                 .attr("width", imageM)
                 .attr("height", imageM)
