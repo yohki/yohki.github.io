@@ -22,8 +22,8 @@
         <script>
 function init() {
     Promise.all([
-        d3.csv("all.csv"), 
-        d3.json("all.json")])
+        d3.csv("bravia.csv"), 
+        d3.json("bravia.json")])
     .then(function(values) {
         let csv = d3.index(values[0], d => d.file);
         let json = values[1];
@@ -39,8 +39,8 @@ function init() {
         let svg = d3.select("body").append("svg").attr("viewBox", [0, 0, width, height]);
         let g = svg.append("g");
 
-        let xScale = d3.scaleLinear().domain([0, 1]).range([width * 0.05, width * 0.95]);
-        let yScale = d3.scaleLinear().domain([0, 1]).range([height * 0.05, height * 0.95]);
+        let xScale = d3.scaleLinear().domain([0, 1]).range([0, width]);
+        let yScale = d3.scaleLinear().domain([0, 1]).range([0, height]);
         let cScale = d3.scaleLinear().domain([startYear, endYear]).range([0, 1]);
 
         let elements = g.selectAll("g")
@@ -48,26 +48,18 @@ function init() {
             .enter()
             .append("g")
             .attr("class", function(d) {
-                let key = d.file
+                let key = d.file.substring(0, d.file.length - 4)
                 return "y" + csv.get(key).year
             })
-            .attr("opacity", 0.95)
             .on("mouseover", onMouseOver)
             .on("mouseout", onMouseOut)
-        elements.append("rect")
-            .attr("width", imageS)
-            .attr("height", imageS)
-            .attr("x", d => xScale(d.position[0]) - imageS / 2)
-            .attr("y", d => yScale(d.position[1]) - imageS / 2)
-            .attr("rx", 4)
-            .attr("ry", 4)
-            .attr("fill", "white")
         elements.append("image")
-            .attr("xlink:href", (d, i) => d.file)
+            .attr("xlink:href", (d, i) => "images/" + d.file)
             .attr("width", imageS)
             .attr("height", imageS)
             .attr("x", d => xScale(d.position[0]) - imageS / 2)
             .attr("y", d => yScale(d.position[1]) - imageS / 2)
+            .attr("fill-opacity", 0.8)
         elements.append("rect")
             .attr("width", imageS)
             .attr("height", imageS)
@@ -78,18 +70,18 @@ function init() {
             .attr("fill", "none")
             .attr("stroke-width", 1.5)
             .attr("stroke", function(d) {
-                let key = d.file
+                let key = d.file.substring(0, d.file.length - 4)
                 let c = cScale(csv.get(key).year)
                 return d3.interpolateSpectral(c)
             })
         elements.append("text")
             .text(function(d) {
-                let key = d.file
+                let key = d.file.substring(0, d.file.length - 4)
                 return csv.get(key).model + " (" + csv.get(key).year + ")"
             })
             .attr("x", d => xScale(d.position[0]) - imageL / 2 + 8)
             .attr("y", d => yScale(d.position[1]) - imageL / 2 + 20)
-            .attr("font-family", "SST Bold")
+            .attr("font-family", "SST")
             .attr("font-size", "12px")
             .attr("visibility", "hidden")
             .attr("fill-opacity", 0)
@@ -98,7 +90,7 @@ function init() {
         for (var yr = startYear; yr <= endYear; yr++) {
             years.push(yr)
         }
-        let legendSize = 40
+        let legendSize = 20
         let legend = svg.append("g").selectAll("g")
             .data(years)
             .enter()
@@ -106,14 +98,14 @@ function init() {
             .on("mouseover", onLegendMouseOver)
             .on("mouseout", onLegendMouseOut)
         legend.append("rect")
-            .attr("y", 5)
-            .attr("x", (d, i) => 3 + i * (legendSize + 5))
+            .attr("x", 5)
+            .attr("y", (d, i) => 3 + i * (legendSize + 5))
             .attr("width", legendSize)
             .attr("height", legendSize)
             .attr("fill", (d, i) => d3.interpolateSpectral(cScale(d)))
         legend.append("text")
-            .attr("y", 32)
-            .attr("x", (d, i) => 8 + i * (legendSize + 5))
+            .attr("x", 32)
+            .attr("y", (d, i) => legendSize + i * (legendSize + 5) - 2)
             .text(d => d)
             .attr("font-family", "SST")
             .attr("font-size", "14px")
@@ -157,10 +149,8 @@ function init() {
             d3.select(this).select("text")
                 .transition().duration('100')
                 .attr("font-family", "SST Bold")
-                .attr("y", 40)
-            d3.select(this).select("rect")
-                .transition().duration('100')
-                .attr("height", legendSize * 1.5)
+                .attr("x", 36)
+
             let year = "y" + d3.select(this).select("text").text()
             d3.selectAll("." + year).selectAll("image, rect")
                 .transition().duration('200')
@@ -174,10 +164,8 @@ function init() {
             d3.select(this).select("text")
                 .transition().duration('100')
                 .attr("font-family", "SST")
-                .attr("y", 32)
-            d3.select(this).select("rect")
-                .transition().duration('100')
-                .attr("height", legendSize)
+                .attr("x", 32)
+
             let year = "y" + d3.select(this).select("text").text()
             d3.selectAll("." + year).selectAll("image, rect")
                 .transition().duration('100')
