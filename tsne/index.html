@@ -13,9 +13,16 @@
         }
         
         body {
-            background-color: hsl(0, 0%, 94%);
+            background-color: hsl(0, 0%, 90%);
         }
 
+        #cb {
+            font-family: "SST";
+            position: absolute;
+            font-size: 14px;
+            left: 10px;
+            bottom: 82px;
+        }
         </style>
     </head>
     <body>
@@ -30,9 +37,9 @@ function init() {
 
         let width = window.innerWidth;
         let height = window.innerHeight;
-        let imageS = 32;
+        let imageS = 24;
         let imageM = 64;
-        let imageL = 192;
+        let imageL = 120;
         let startYear = 2008;
         let endYear = 2020;
 
@@ -49,7 +56,9 @@ function init() {
             .append("g")
             .attr("class", function(d) {
                 let key = d.file
-                return "y" + csv.get(key).year
+                let category = key.split('/')[1] // WALKMAN, MDR_overband, BRAVIA, XPERIA
+                let year = csv.get(key).year
+                return "y" + year + " " + category
             })
             .attr("opacity", 0.95)
             .on("mouseover", onMouseOver)
@@ -59,8 +68,6 @@ function init() {
             .attr("height", imageS)
             .attr("x", d => xScale(d.position[0]) - imageS / 2)
             .attr("y", d => yScale(d.position[1]) - imageS / 2)
-            .attr("rx", 4)
-            .attr("ry", 4)
             .attr("fill", "white")
         elements.append("image")
             .attr("xlink:href", (d, i) => d.file)
@@ -73,10 +80,8 @@ function init() {
             .attr("height", imageS)
             .attr("x", d => xScale(d.position[0]) - imageS / 2)
             .attr("y", d => yScale(d.position[1]) - imageS / 2)
-            .attr("rx", 4)
-            .attr("ry", 4)
             .attr("fill", "none")
-            .attr("stroke-width", 1.5)
+            .attr("stroke-width", 1)
             .attr("stroke", function(d) {
                 let key = d.file
                 let c = cScale(csv.get(key).year)
@@ -87,11 +92,12 @@ function init() {
                 let key = d.file
                 return csv.get(key).model + " (" + csv.get(key).year + ")"
             })
-            .attr("x", d => xScale(d.position[0]) - imageL / 2 + 8)
-            .attr("y", d => yScale(d.position[1]) - imageL / 2 + 20)
+            .attr("x", d => xScale(d.position[0]) - imageL / 2 + 4)
+            .attr("y", d => yScale(d.position[1]) - imageL / 2 + 16)
             .attr("font-family", "SST Bold")
-            .attr("font-size", "12px")
+            .attr("font-size", "11px")
             .attr("visibility", "hidden")
+            .attr("fill", "#454545")
             .attr("fill-opacity", 0)
 
         var years = [];
@@ -106,22 +112,27 @@ function init() {
             .on("mouseover", onLegendMouseOver)
             .on("mouseout", onLegendMouseOut)
         legend.append("rect")
-            .attr("y", 5)
+            .attr("y", height - legendSize * 1.3 - 8)
             .attr("x", (d, i) => 3 + i * (legendSize + 5))
             .attr("width", legendSize)
             .attr("height", legendSize)
             .attr("fill", (d, i) => d3.interpolateSpectral(cScale(d)))
         legend.append("text")
-            .attr("y", 32)
-            .attr("x", (d, i) => 8 + i * (legendSize + 5))
+            .attr("y", height - legendSize + 35)
+            .attr("x", (d, i) => 9 + i * (legendSize + 5))
             .text(d => d)
             .attr("font-family", "SST")
-            .attr("font-size", "14px")
+            .attr("font-size", "12px")
 
         svg.call(d3.zoom()
             .extent([[0, 0], [width, height]])
             .scaleExtent([1, 8])
             .on("zoom", onZoom));
+
+        let checkboxes = document.querySelectorAll('input')
+        for (var i = 0; i < checkboxes.length; i++) {
+            checkboxes[i].addEventListener("click", onCheckboxClicked)
+        }
 
         function onZoom({transform}) {
             g.attr("transform", transform);
@@ -157,9 +168,9 @@ function init() {
             d3.select(this).select("text")
                 .transition().duration('100')
                 .attr("font-family", "SST Bold")
-                .attr("y", 40)
             d3.select(this).select("rect")
                 .transition().duration('100')
+                .attr("y", height - legendSize * 1.3 - 8)
                 .attr("height", legendSize * 1.5)
             let year = "y" + d3.select(this).select("text").text()
             d3.selectAll("." + year).selectAll("image, rect")
@@ -174,7 +185,6 @@ function init() {
             d3.select(this).select("text")
                 .transition().duration('100')
                 .attr("font-family", "SST")
-                .attr("y", 32)
             d3.select(this).select("rect")
                 .transition().duration('100')
                 .attr("height", legendSize)
@@ -186,11 +196,33 @@ function init() {
                 .attr("x", d => xScale(d.position[0]) - imageS / 2)
                 .attr("y", d => yScale(d.position[1]) - imageS / 2)
         }
+
+        function onCheckboxClicked(evt) {
+            let id = evt.currentTarget.id
+            let val = evt.currentTarget.checked ? 1.0 : 0.0
+            if (id == "cb_tv") {
+                d3.selectAll(".BRAVIA").transition().duration('200').attr("opacity", val)
+            } else if (id == "cb_audio") {
+                d3.selectAll(".MDR_overband").transition().duration('200').attr("opacity", val)
+                d3.selectAll(".WALKMAN").transition().duration('200').attr("opacity", val)
+            } else if (id == "cb_wallpaper") {
+                d3.selectAll(".XPERIA").transition().duration('200').attr("opacity", val)
+            }
+            console.log(evt.currentTarget.id + ":" + evt.currentTarget.checked)
+        }
     });
 }
 
         </script>
     </head>
     <body onload='init()'>
+        <div id="cb">
+            <input type="checkbox" id="cb_tv" name="product" value="tv" checked />                
+            <label for="cb_tv">TV</label>
+            <input type="checkbox" id="cb_audio" name="product" value="audio" checked />
+            <label for="cb_audio">Audio</label>
+            <input type="checkbox" id="cb_wallpaper" name="product" value="wallpaper" checked />
+            <label for="cb_wallpaper">Wallpaper</label>
+        </div>
     </body>
 </html>
