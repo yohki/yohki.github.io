@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Liquid</title>
+	<script src="liquidfun.js"></script>
+	<script src="../common/three.min.js"></script>
+
+	<script src="./postprocessing/EffectComposer.js"></script>
+	<script src="./postprocessing/MaskPass.js"></script>
+	<script src="./postprocessing/RenderPass.js"></script>
+	<script src="./postprocessing/ShaderPass.js"></script>
+	<script src="./postprocessing/BloomPass.js"></script>
+	<script src="./shaders/CopyShader.js"></script>
+	<script src="./shaders/ConvolutionShader.js"></script>
+	<script>
+
+var camera;
+var scene;
+var world;
+var threeRenderer;
+var renderer;
+var composer;
+
+var timeStep = 1.0 / 120.0;
+var velocityIterations = 8;
+var positionIterations = 3;
+var circleResolution = 32;
+
+var projector = new THREE.Projector();
+
+var windowWidth = window.innerWidth;
+var windowHeight = window.innerHeight;
+
+var box2dRadius = 4.0;
+var threeRadius = 300;
+
+var MAX_PARTICLES = 100000;
+var _particleSystem;
+var particleGroup;
+var mesh;
+var pressed = false;
+
+var _dimming = false;
+var _dimSuspend = false;
+var _dimTimer = -1;
+var _dimValue = 1.0;
+var _dimDelta = 0.005;
+
+var init = function() {
+	initThree();
+	initLiquid();
+
+	// composer = new THREE.EffectComposer(threeRenderer);
+	// composer.addPass(new THREE.RenderPass(scene, camera));
+	// composer.addPass(new THREE.BloomPass(2.0, 25, 2.0, 512));
+	// var toScreen = new THREE.ShaderPass(THREE.CopyShader);
+	// toScreen.renderToScreen = true;
+	// composer.addPass(toScreen);
+
+	document.addEventListener('mouseup', onMouseUp);
+	document.addEventListener('mousedown', onMouseDown);
+	document.addEventListener('keydown', onKeyDown);
+	render();
+};
+
+var initThree = function() {
+	camera = new THREE.PerspectiveCamera(70, windowWidth / windowHeight, 1, 1000);
+	camera.position.x = 0;
+	camera.position.y = 0;
+	camera.position.z = 8;
+
+	threeRenderer = new THREE.WebGLRenderer();
+	threeRenderer.setClearColor(0x000000, 1);
+	threeRenderer.setSize(windowWidth, windowHeight);
+
+	scene = new THREE.Scene();
+	camera.lookAt(scene.position);
+
+	document.body.appendChild(threeRenderer.domElement);
+
+	var geom = new THREE.Geometry();
+	var colors = [];
+	var c = Math.random();
+	for(var i = 0 ; i < MAX_PARTICLES ; i++) {
+		geom.vertices.push(new THREE.Vector3(0, 0, 1000));
+		colors[i] = new THREE.Color();
+	    colors[i].setHSL(c, 0.0, 1.0);
+	}
+	geom.colors = colors;
+
+	var texture = THREE.ImageUtils.loadTexture('particle1.png');
+	var material = new THREE.ParticleBasicMaterial({
+		size: 8, color: 0xffffff, blending: THREE.AdditiveBlending,
+		transparent: true, depthTest: false, map: texture,
+		vertexColors: THREE.VertexColors
+	});
+
+	mesh = new THREE.ParticleSystem(geom, material);
+	mesh.position = new THREE.Vector3(0, 0, -threeRadius * 2);
+	mesh.sortParticles = false;
+	scene.add(mesh);
+};
+
+var initLiquid = function() {
+	var gravity = new b2Vec2(0, -10);
+	world = new b2World(gravity);
+
+	// Create the containing box.
+	var bd = new b2BodyDef();
+	var ground = world.CreateBody(bd);
+
+	var shape = new b2ChainShape();
+	shape.vertices.push(new b2Vec2(-4, -4));
+	shape.vertices.push(new b2Vec2(-4, 4));
+	shape.vertices.push(new b2Vec2(4, 4));
+	shape.vertices.push(new b2Vec2(4, -4));
+	shape.CreateLoop();
+	ground.CreateFixtureFromShape(shape, 0.0);
+
+	var psd = new b2ParticleSystemDef();
+	psd.radius = 0.025;
+	psd.damping = 0.2;
+	_particleSystem = world.CreateParticleSystem(psd);
+
+	// Create the particles.
+	shape = new b2CircleShape();
+	shape.radius = 2.0;
+	shape.p = new b2Vec2(0, 2);
+
+	var pgd = new b2ParticleGroupDef;
+	//pd.flags = b2_tensileParticle | b2_viscousParticle;
+	pgd.flags = b2_colorMixingParticle;
+	pgd.shape = shape;
+	pgd.color.Set(0, 0, 0, 255);
+	particleGroup = _particleSystem.CreateParticleGroup(pgd);
+
+	// var box = new b2PolygonShape();
+	// pgd = new b2ParticleGroupDef();
+	// box.vertices[0] = new b2Vec2(0, 3);
+	// box.vertices[1] = new b2Vec2(1, 3);
+	// box.vertices[2] = new b2Vec2(1, 4);
+	// box.vertices[3] = new b2Vec2(0, 4);
+	// pgd.flags = b2_colorMixingParticle;
+	// pgd.shape = box;
+	// pgd.color.Set(64, 192, 128, 255);
+	// _particleSystem.CreateParticleGroup(pgd);
+};
+
+var addRigidSphere = function() {
+	// circle
+	var bd = new b2BodyDef();
+	var circle = new b2CircleShape();
+	bd.type = b2_dynamicBody;
+	var body = world.CreateBody(bd);
+	circle.position.Set(Math.random() - 0.5, 1);
+	circle.radius = 0.5 + Math.random() * 0.5;
+	body.CreateFixtureFromShape(circle, 0.5);
+	var massData = new b2MassData(4.0, new b2Vec2(0, 0), 0.0);
+ 	body.SetMassData(massData);
+};
+
+var COLORS = [
+	//[0, 0, 0, 255],
+	[96, 128, 255, 255],
+	[255, 96, 128, 255],
+	[255, 255, 255, 255],
+];
+
+var _index = 0;
+
+var addParticleSphere = function() {
+	var circle = new b2CircleShape();
+	circle.position.Set(Math.random() * 2 - 1, 1);
+	circle.radius = 0.5 + Math.random() * 0.5;
+	var pgd = new b2ParticleGroupDef();
+	pgd.flags = b2_colorMixingParticle;
+	pgd.shape = circle;
+	var c = COLORS[++_index % COLORS.length];
+	pgd.color.Set(c[0], c[1], c[2], c[3]);
+	_particleSystem.CreateParticleGroup(pgd);
+	startDimTimer();
+};
+
+var addSpringParticle = function() {
+	var circle = new b2CircleShape();
+	circle.position.Set(Math.random() * 2 - 1, 1);
+	circle.radius = 0.5 + Math.random() * 0.5;
+	var pgd = new b2ParticleGroupDef();
+	pgd.flags = b2_colorMixingParticle | b2_springParticle;
+	pgd.shape = circle;
+	var c = COLORS[++_index % COLORS.length];
+	pgd.color.Set(c[0], c[1], c[2], c[3]);
+	_particleSystem.CreateParticleGroup(pgd);
+};
+
+var startDimTimer = function() {
+	if (_dimming) {
+		_dimSuspend = true;
+		console.log("Request suspend dimming");
+	}
+
+	if (_dimTimer != -1) {
+		window.clearTimeout(_dimTimer);
+	}
+
+	_dimTimer = window.setTimeout(function() {
+		_dimming = true;
+		_dimValue = 1.0;
+		_dimTimer = -1;
+		console.log("Start dimming");
+	}, 10000);
+};
+
+var render = function() {
+	// bring objects into world
+	//renderer.currentVertex = 0;
+
+	Step();
+	//renderer.draw();
+
+	var particles = _particleSystem.GetPositionBuffer();
+	var colors = _particleSystem.GetColorBuffer();
+	var geom = mesh.geometry;
+	var scale = threeRadius / box2dRadius;
+
+
+	var dimmingEnd = false;
+	if (_dimming) {
+		_dimValue = Math.max(0, _dimValue - _dimDelta);
+		console.log(_dimValue);
+		if (_dimValue == 0 || _dimSuspend) {
+			_dimming = false;
+			console.log("End dimming");
+			dimmingEnd = true;
+			_dimSuspend = false;
+		}
+	}
+
+	var n = particles.length / 2;
+	for (var i = 0; i < n; i++) {
+		var x = particles[i * 2] * scale;
+		var y = particles[i * 2 + 1] * scale;
+		geom.vertices[i].x = x;
+		geom.vertices[i].y = y;
+		geom.vertices[i].z = 0;
+		var r = colors[i * 4] / 255;
+		var g = colors[i * 4 + 1] / 255;
+		var b = colors[i * 4 + 2] / 255;
+		if (_dimming) {
+			colors[i * 4] = r * 255;
+			colors[i * 4 + 1] = g * 255;
+			colors[i * 4 + 2] = b * 255;
+			r *= _dimValue;
+			g *= _dimValue;
+			b *= _dimValue;
+		} else if (dimmingEnd) {
+			r *= _dimValue;
+			g *= _dimValue;
+			b *= _dimValue;
+			colors[i * 4] = r * 255;
+			colors[i * 4 + 1] = g * 255;
+			colors[i * 4 + 2] = b * 255;
+		}
+		geom.colors[i].setRGB(r, g, b);
+	}
+	mesh.geometry.verticesNeedUpdate = true;
+	mesh.geometry.colorsNeedUpdate = true;
+
+	threeRenderer.render(scene, camera);
+	//composer.render();
+
+	requestAnimationFrame(render);
+};
+
+var Step = function() {
+	world.Step(timeStep, velocityIterations, positionIterations);
+};
+
+var onMouseDown = function(evt) {
+	 pressed = true;
+	 //timeStep = 1.0 / 300.0;
+};
+
+var onMouseUp = function(evt) {
+	var p = (getMouseCoords(event));
+	var isInside = true;//p.x * p.x + p.y * p.y < box2dRadius * box2dRadius;
+
+	if (isInside) {
+		var direction = new b2Vec2(p.x, p.y);
+		b2Vec2.Normalize(direction, direction);
+
+		var kForceMagnitude = 1.0 / timeStep / 60.0;
+		var force = new b2Vec2();
+		b2Vec2.MulScalar(force, direction, kForceMagnitude * particleGroup.GetParticleCount());
+		particleGroup.ApplyForce(force);
+
+		startDimTimer();
+	}
+
+ 	pressed = false;
+ 	//timeStep = 1.0 / 60.0;
+};
+
+var KEY = {
+	B: 66,
+	P: 80,
+	R: 82,
+	S: 83,
+	W: 87,
+	SPACE: 32,
+	UP: 38,
+	DOWN: 40
+};
+
+var onKeyDown = function(evt) {
+
+	switch(evt.which) {
+		case KEY.UP:
+			timeStep =  1.0 / 60.0;
+			break;
+		case KEY.DOWN:
+			timeStep = 1.0 / 180.0;
+			break;
+		case KEY.P:
+			addParticleSphere();
+			break;
+		case KEY.R: 
+			addRigidSphere();
+			break;
+		case KEY.S:
+			addSpringParticle();
+			break;
+		case KEY.SPACE:
+
+	}
+};
+
+var getMouseCoords = function(event) {
+	var mouse = new THREE.Vector3();
+	mouse.x = (event.clientX / windowWidth) * 2 - 1;
+	mouse.y = -(event.clientY / windowHeight) * 2 + 1;
+	mouse.z = 0.5;
+
+	projector.unprojectVector(mouse, camera);
+	var dir = mouse.sub(camera.position).normalize();
+	var distance = -camera.position.z / dir.z;
+	var pos = camera.position.clone().add(dir.multiplyScalar(distance));
+	var p = new b2Vec2(pos.x, pos.y);
+	return p;
+};
+
+	</script>
+	<style type="text/css">
+body {
+	margin: 0;
+	overflow: hidden;
+}
+
+canvas {
+	-webkit-filter: blur(10px);
+}
+	</style>
+</head>
+<body onload="init();">
+	
+</body>
+</html>

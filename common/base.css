@@ -1,0 +1,151 @@
+@font-face {
+	font-family: "SST";
+	src: url("fonts/SST-UltraLight.otf");
+	font-weight: 100;
+}
+
+@font-face {
+	font-family: "SST";
+	src: url("fonts/SST-Light.otf");
+	font-weight: 200;
+}
+
+@font-face {
+	font-family: "SST";
+	src: url("fonts/SST-Roman.otf");
+	font-weight: 400;
+}
+
+@font-face {
+	font-family: "SST";
+	src: url("fonts/SST-Medium.otf");
+	font-weight: 500;
+}
+
+@font-face {
+	font-family: "SST";
+	src: url("fonts/SST-Bold.otf");
+	font-weight: 600;
+}
+
+@font-face {
+	font-family: "SST";
+	src: url("fonts/SST-Heavy.otf");
+	font-weight: 800;
+}
+
+body {
+	font-family: "SST";
+	color: #444;
+	font-weight: normal;
+	font-size: 14px;
+}
+
+#logo {
+	margin: 18px 0 54px 18px;
+	line-height: 1.0;
+}
+
+#logo h1 {
+	font-weight: 800;
+	font-size: 48px;
+	margin: 0 0 9px 0;
+	text-align: left;
+}
+
+#logo h2 {
+	font-weight: 200;
+	font-size: 24px;
+	margin: 0;
+	text-align: left;
+}
+
+.proto-item {
+	font-weight: 100;
+	margin: 18px 36px;
+	font-size: 24px;
+	border-bottom: 1px solid #999;
+}
+
+.proto-num {
+	font-weight: 800;
+	padding-right: 18px;
+}
+
+a:link {
+	color: #666;
+	text-decoration: none;
+}
+
+a:hover {
+}
+
+a:visited {
+	color: #666;
+	text-decoration: none;
+}
+
+h1.head {
+	color: #444;
+
+	font-size: 36px;
+	font-weight: 100;
+	margin: 18px 9px 36px 9px;
+	background-color: rgba(255,255,255,0.5);
+	border-bottom: 1px solid #999;
+}
+
+h1.head span.num {
+	color: #444;
+	font-weight: 800;
+	padding-right: 18px;
+}
+
+h2 {
+	text-align: center;
+	font-weight: normal;
+	font-size: 18px;
+	margin: 18px;
+}
+
+p {
+	text-align: center;
+	font-weight: 200;
+	margin: 9px 36px;
+}
+
+form.de-form input[type="text"] {
+	font-family: "SST";
+	font-weight: 400;
+	font-size: 24px;
+	margin: 5px 5px 10px 10px;
+	padding: 4px 15px 6px 15px;
+	border: none;
+	background-color: #eee;
+	border-radius: 24px 0px 0px 24px;
+	transition: background-color 0.3s linear;
+}
+
+form.de-form input[type="text"]:hover {
+	background-color: #ddd;
+}
+
+form .de-button {
+	font-family: "SST";
+	font-weight: 200;
+	font-size: 24px;
+	margin: 5px;
+	padding: 3px 15px 5px 10px;
+	cursor: pointer;
+	background-color: #ccc;
+	border-radius: 0px 24px 24px 0px;
+}
+
+form .de-button:hover {
+	background-color: #bbb;
+}
+
+form .de-button:active {
+	color: #fff;
+	background-color: #333;
+}

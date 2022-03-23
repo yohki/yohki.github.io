@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Liquid</title>
+	<script src="liquidfun.js"></script>
+	<script src="renderer.js"></script>
+	<script src="../common/three.min.js"></script>
+	<script src="../common/dat.gui.js"></script>
+
+	<script src="./postprocessing/EffectComposer.js"></script>
+	<script src="./postprocessing/MaskPass.js"></script>
+	<script src="./postprocessing/RenderPass.js"></script>
+	<script src="./postprocessing/ShaderPass.js"></script>
+	<script src="./postprocessing/BloomPass.js"></script>
+	<script src="./shaders/CopyShader.js"></script>
+	<script src="./shaders/ConvolutionShader.js"></script>
+	<script>
+
+var camera;
+var scene;
+var world;
+var threeRenderer;
+var renderer;
+var composer;
+
+var timeStep = 1.0 / 60.0;
+var velocityIterations = 8;
+var positionIterations = 3;
+var circleResolution = 32;
+
+var projector = new THREE.Projector();
+
+var windowWidth = window.innerWidth;
+var windowHeight = window.innerHeight;
+
+var box2dRadius = 4.0;
+var threeRadius = 300;
+
+var particleSystem;
+var particleGroup;
+var mesh;
+var pressed = false;
+
+var gui;
+var params = {};
+
+var shapes = [[
+[2.97903, 3.46121],
+[2.78965, 3.44685],
+[2.61297, 3.40449],
+[2.45468, 3.33517],
+[2.32059, 3.23999],
+[2.24154, 3.1518],
+[2.18564, 3.05222],
+[2.1524, 2.94459],
+[2.14143, 2.83208],
+[2.15275, 2.72046],
+[2.18656, 2.61305],
+[2.2426, 2.51354],
+[2.32056, 2.42557],
+[2.45141, 2.33395],
+[2.61284, 2.26454],
+[2.79276, 2.22053],
+[2.97902, 2.20515],
+[3.17399, 2.21829],
+[3.34878, 2.25859],
+[3.50368, 2.32736],
+[3.63892, 2.42591],
+[3.71678, 2.51385],
+[3.77196, 2.6132],
+[3.80478, 2.72046],
+[3.81564, 2.83209],
+[3.8043, 2.94217],
+[3.77064, 3.05043],
+[3.71533, 3.15149],
+[3.63895, 3.23999],
+[3.50654, 3.33558],
+[3.34776, 3.40482],
+[3.1696, 3.44698],
+[2.97903, 3.46121],
+[2.97903, 3.4198],
+[2.97903, 3.37839],
+[2.97903, 3.33698],
+[2.97903, 3.29555],
+[3.07959, 3.28678],
+[3.17377, 3.26084],
+[3.25888, 3.21831],
+[3.33226, 3.15981],
+[3.38973, 3.09012],
+[3.43006, 3.0125],
+[3.45385, 2.92662],
+[3.46164, 2.83213],
+[3.45338, 2.73926],
+[3.42882, 2.65193],
+[3.38834, 2.57261],
+[3.33224, 2.50372],
+[3.2591, 2.44617],
+[3.17349, 2.40383],
+[3.07895, 2.37767],
+[2.97899, 2.36873],
+[2.8788, 2.37761],
+[2.78407, 2.40365],
+[2.69838, 2.44597],
+[2.62516, 2.5037],
+[2.56933, 2.57261],
+[2.52894, 2.65203],
+[2.50442, 2.73938],
+[2.49616, 2.8321],
+[2.50449, 2.92455],
+[2.52914, 3.01168],
+[2.56954, 3.09098],
+[2.62518, 3.15979],
+[2.69835, 3.21784],
+[2.78396, 3.26041],
+[2.87864, 3.28661],
+[2.97901, 3.29553],
+[2.97901, 3.33695],
+[2.97901, 3.37837],
+[2.97901, 3.41979],
+[2.97901, 3.46123],
+[2.97903, 3.46123],
+[2.97903, 3.46121]
+], [
+[1.09011, 2.20575],
+[0.87395, 2.22615],
+[0.661375, 2.29123],
+[0.50321, 2.40217],
+[0.437403, 2.58239],
+[0.47923, 2.73707],
+[0.519372, 2.79065],
+[0.598516, 2.85178],
+[0.763995, 2.91297],
+[0.913132, 2.93906],
+[1.11944, 2.96542],
+[1.32149, 2.98751],
+[1.45949, 3.00921],
+[1.53739, 3.03792],
+[1.58122, 3.12208],
+[1.5393, 3.21038],
+[1.4869, 3.23894],
+[1.40478, 3.26592],
+[1.2032, 3.28873],
+[1.0073, 3.26698],
+[0.865313, 3.23019],
+[0.766954, 3.1852],
+[0.669631, 3.09955],
+[0.643462, 3.0499],
+[0.629099, 2.97553],
+[0.55064, 2.97553],
+[0.4722, 2.97553],
+[0.4722, 3.19531],
+[0.4722, 3.41507],
+[0.559382, 3.41507],
+[0.646583, 3.41507],
+[0.646583, 3.38957],
+[0.646583, 3.35566],
+[0.654459, 3.33753],
+[0.6843, 3.33437],
+[0.783591, 3.37303],
+[0.939377, 3.41681],
+[1.06335, 3.44041],
+[1.20404, 3.44967],
+[1.42527, 3.43209],
+[1.55882, 3.39968],
+[1.66408, 3.36018],
+[1.76953, 3.29556],
+[1.8392, 3.21848],
+[1.88238, 3.06425],
+[1.84569, 2.9123],
+[1.79119, 2.83678],
+[1.738, 2.79353],
+[1.67818, 2.76001],
+[1.61274, 2.73372],
+[1.53944, 2.71157],
+[1.34703, 2.67737],
+[1.14914, 2.65213],
+[0.962778, 2.63273],
+[0.799886, 2.60493],
+[0.759344, 2.5824],
+[0.734877, 2.52689],
+[0.749765, 2.477],
+[0.794226, 2.43563],
+[0.928713, 2.3891],
+[1.11511, 2.372],
+[1.32794, 2.39403],
+[1.48687, 2.44459],
+[1.53186, 2.46761],
+[1.57534, 2.49733],
+[1.62447, 2.5529],
+[1.66252, 2.64322],
+[1.73293, 2.64322],
+[1.80334, 2.64322],
+[1.80334, 2.45192],
+[1.80334, 2.26062],
+[1.72472, 2.26062],
+[1.64608, 2.26062],
+[1.64608, 2.28285],
+[1.64608, 2.30506],
+[1.63517, 2.32506],
+[1.60326, 2.32266],
+[1.41171, 2.25053],
+[1.09011, 2.20575],
+[1.09011, 2.20575],
+[1.09011, 2.20575]
+], [
+[4.536, 2.27528],
+[5.30306, 2.96751],
+[5.2952, 2.50144],
+[5.21702, 2.41483],
+[5.07281, 2.41483],
+[5.07281, 2.27541],
+[5.72869, 2.27541],
+[5.72869, 2.41483],
+[5.58795, 2.41483],
+[5.51547, 2.50144],
+[5.52736, 3.39204],
+[5.30276, 3.39204],
+[4.41937, 2.6035],
+[4.41951, 3.1631],
+[4.4858, 3.25256],
+[4.64335, 3.25256],
+[4.64335, 3.39197],
+[3.99923, 3.39197],
+[3.99923, 3.25256],
+[4.14978, 3.25256],
+[4.2038, 3.15992],
+[4.2038, 2.50673],
+[4.10959, 2.41489],
+[3.98742, 2.41489],
+[3.98742, 2.27528],
+[4.536, 2.27528],
+[4.536, 2.27528],
+[4.536, 2.27528]
+], [
+[6.47809, 3.25233],
+[6.51691, 3.24989],
+[6.54712, 3.2231],
+[6.55012, 3.19297],
+[6.55021, 2.97261],
+[6.54085, 2.95327],
+[6.12115, 2.47672],
+[6.00031, 2.41488],
+[5.86407, 2.41488],
+[5.86407, 2.27538],
+[6.63314, 2.27538],
+[6.63314, 2.41469],
+[6.54042, 2.41469],
+[6.52306, 2.45767],
+[6.78433, 2.7705],
+[6.79208, 2.77151],
+[7.05937, 2.45806],
+[7.03656, 2.41493],
+[6.94138, 2.41493],
+[6.94138, 2.27543],
+[7.57178, 2.27543],
+[7.57178, 2.41493],
+[7.43095, 2.41493],
+[7.32064, 2.46782],
+[6.89624, 2.95203],
+[6.89111, 2.97267],
+[6.89111, 3.19296],
+[6.89411, 3.22306],
+[6.92433, 3.24983],
+[6.96275, 3.2523],
+[7.10678, 3.2523],
+[7.10678, 3.39173],
+[6.34161, 3.39173],
+[6.34161, 3.2523],
+[6.47809, 3.25233],
+[6.47809, 3.25233]
+]];
+
+var MAX_PARTICLES = 100000;
+
+var init = function() {
+	camera = new THREE.PerspectiveCamera(70, windowWidth / windowHeight, 1, 1000);
+	camera.position.x = 0;
+	camera.position.y = 0;
+	camera.position.z = 8;
+
+	threeRenderer = new THREE.WebGLRenderer();
+	threeRenderer.setClearColor(0x1e1e1e, 1);
+	threeRenderer.setSize(windowWidth, windowHeight);
+
+	scene = new THREE.Scene();
+	camera.lookAt(scene.position);
+
+	document.body.appendChild(threeRenderer.domElement);
+
+	var gravity = new b2Vec2(0, -10);
+	world = new b2World(gravity);
+
+	// Create the containing box.
+	var bd = new b2BodyDef();
+	var ground = world.CreateBody(bd);
+
+	var chainShape = new b2ChainShape();
+	chainShape.vertices.push(new b2Vec2(-4, -4));
+	chainShape.vertices.push(new b2Vec2(4, -4));
+	chainShape.vertices.push(new b2Vec2(4, 4));
+	chainShape.vertices.push(new b2Vec2(-4, 4));
+
+	chainShape.CreateLoop();
+	ground.CreateFixtureFromShape(chainShape, 0);
+
+	var psd = new b2ParticleSystemDef();
+	psd.radius = 0.025;
+	psd.damping = 0.2;
+	particleSystem = world.CreateParticleSystem(psd);
+
+	// Create the particles.
+	shape = new b2PolygonShape();
+	shape.SetAsBoxXY(4, 1);
+
+	var pd = new b2ParticleGroupDef;
+	pd.position.Set(0, -2);
+	//pd.flags = b2_elasticParticle;
+	//pd.flags = b2_tensileParticle | b2_viscousParticle;
+	pd.shape = shape;
+	particleGroup = particleSystem.CreateParticleGroup(pd);
+  	renderer = new Renderer();
+
+	var geom = new THREE.Geometry();
+	var numParticles = particleSystem.GetParticleCount();
+	for(var i = 0 ; i < MAX_PARTICLES ; i++) {
+		geom.vertices.push(new THREE.Vector3(0, 0, 1000));
+	}
+
+	var texture = THREE.ImageUtils.loadTexture('particle1.png');
+	var material = new THREE.ParticleBasicMaterial({
+		size: 12, color: 0x122431, blending: THREE.AdditiveBlending,
+		transparent: true, depthTest: false, map: texture });
+
+	mesh = new THREE.ParticleSystem(geom, material);
+	mesh.position = new THREE.Vector3(0, 0, -threeRadius * 2);
+	mesh.sortParticles = false;
+	scene.add(mesh);
+
+	composer = new THREE.EffectComposer(threeRenderer);
+	composer.addPass(new THREE.RenderPass(scene, camera));
+	//composer.addPass(new THREE.BloomPass(1.0, 25, 1.0, 512));
+	var toScreen = new THREE.ShaderPass(THREE.CopyShader);
+	toScreen.renderToScreen = true;
+	composer.addPass(toScreen);
+
+	document.addEventListener('mouseup', onMouseUp);
+	document.addEventListener('mousedown', onMouseDown);
+	document.addEventListener('keydown', onKeyDown);
+
+	params.foreground = "#122431";
+	params.background = "#1e1e1e";
+	params.bloom = false;
+	params.particleSize = 12;
+
+	gui = new dat.GUI();
+	gui.addColor(params, "foreground").onChange(function(value) {
+		mesh.material.color.set(value);
+	});
+	gui.addColor(params, "background").onChange(function(value) {
+		threeRenderer.setClearColor(value);
+	});
+	gui.add(params, "bloom").onFinishChange(function(value) {
+		composer = new THREE.EffectComposer(threeRenderer);
+		composer.addPass(new THREE.RenderPass(scene, camera));
+		if (value) {
+			composer.addPass(new THREE.BloomPass(1.0, 25, 1.0, 512));
+		}
+		var toScreen = new THREE.ShaderPass(THREE.CopyShader);
+		toScreen.renderToScreen = true;
+		composer.addPass(toScreen);
+	});
+	gui.add(params, "particleSize", 1, 20).onFinishChange(function(value) {
+		mesh.material.size = Math.round(value);
+	});
+	render();
+};
+
+var addSymbol = function(idx) {
+	var bd = new b2BodyDef();
+	var shape = new b2ChainShape();
+	for (var j = 0; j < shapes[idx].length; j++) {
+		var x = shapes[idx][j][0] - 4;
+		var y = -shapes[idx][j][1] + 2.5;
+		shape.vertices.push(new b2Vec2(x, y));
+	}
+	shape.CreateLoop();
+	
+	bd.type = b2_dynamicBody;
+	var body = world.CreateBody(bd);
+	body.CreateFixtureFromShape(shape, 0.5);
+	var massData = new b2MassData(8.0, new b2Vec2(0, 0), 0.0);
+ 	body.SetMassData(massData);
+
+ // 	var pgd = new b2ParticleGroupDef();
+	// pgd.flags = b2_colorMixingParticle;
+	// pgd.shape = shape;
+	// pgd.color.Set(255, 255, 255, 255);
+	// particleSystem.CreateParticleGroup(pgd);
+};
+
+var render = function() {
+	// bring objects into world
+	//renderer.currentVertex = 0;
+
+	Step();
+	//renderer.draw();
+
+	var particles = particleSystem.GetPositionBuffer();
+	var geom = mesh.geometry;
+	for (var i = 0; i < particles.length; i += 2) {
+		var x = particles[i] / box2dRadius * threeRadius;
+		var y = particles[i + 1] / box2dRadius * threeRadius;
+		geom.vertices[i].x = x;
+		geom.vertices[i].y = y;
+		geom.vertices[i].z = 0;
+	}
+	mesh.geometry.verticesNeedUpdate = true;
+
+	//threeRenderer.render(scene, camera);
+	composer.render();
+	requestAnimationFrame(render);
+};
+
+var Step = function() {
+	world.Step(timeStep, velocityIterations, positionIterations);
+};
+
+var onMouseDown = function(evt) {
+	 pressed = true;
+	 //timeStep = 1.0 / 300.0;
+};
+
+var onMouseUp = function(evt) {
+	var p = (getMouseCoords(event));
+	var isInside = true;//p.x * p.x + p.y * p.y < box2dRadius * box2dRadius;
+
+	if (isInside) {
+		var direction = new b2Vec2(p.x, p.y);
+		b2Vec2.Normalize(direction, direction);
+
+		var kForceMagnitude = 1.0 / timeStep / 60.0;
+		var force = new b2Vec2();
+		b2Vec2.MulScalar(force, direction, kForceMagnitude * particleGroup.GetParticleCount());
+		particleGroup.ApplyForce(force);
+	}
+
+ 	pressed = false;
+ 	//timeStep = 1.0 / 60.0;
+};
+
+var KEY = {
+	SPACE: 32,
+	UP: 38,
+	DOWN: 40,
+	S: 83,
+	O: 79,
+	N: 78,
+	Y: 89
+};
+
+var onKeyDown = function(evt) {
+
+	switch(evt.which) {
+		case KEY.UP:
+			timeStep =  1.0 / 30.0;
+			break;
+		case KEY.DOWN:
+			timeStep = 1.0 / 120.0;
+			break;
+		case KEY.S:
+			addSymbol(1);
+			break;
+		case KEY.O:
+			addSymbol(0);
+			break;
+		case KEY.N:
+			addSymbol(2);
+			break;
+		case KEY.Y:
+			addSymbol(3);
+			break;
+		default:
+			console.log(evt.which);
+			break;
+	}
+};
+
+var getMouseCoords = function(event) {
+	var mouse = new THREE.Vector3();
+	mouse.x = (event.clientX / windowWidth) * 2 - 1;
+	mouse.y = -(event.clientY / windowHeight) * 2 + 1;
+	mouse.z = 0.5;
+
+	projector.unprojectVector(mouse, camera);
+	var dir = mouse.sub(camera.position).normalize();
+	var distance = -camera.position.z / dir.z;
+	var pos = camera.position.clone().add(dir.multiplyScalar(distance));
+	var p = new b2Vec2(pos.x, pos.y);
+	return p;
+};
+
+	</script>
+	<style type="text/css">
+body {
+	margin: 0;
+	overflow: hidden;
+}
+	</style>
+</head>
+<body onload="init();">
+	
+</body>
+</html>
