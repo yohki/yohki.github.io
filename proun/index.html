@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+	<style>
+
+html, body {
+	width: 100%;
+	height: 100%;
+	margin: 0px;
+	overflow: hidden;
+	background-color: black;
+}
+
+#toolbar {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	display: flex;
+	align-items: center;
+	background: rgba(30,30,30,0.95);
+	padding: 8px 16px;
+	box-sizing: border-box;
+	z-index: 10;
+}
+#toolbar select, #toolbar input[type="file"] {
+	margin-right: 12px;
+	background: #222;
+	color: #fff;
+	border: 1px solid #444;
+	border-radius: 4px;
+	padding: 4px 8px;
+}
+#toolbar input[type="file"] {
+	padding: 2px 0;
+}
+
+#menu {
+	position: absolute;
+	bottom: 10px;
+	right: 10px;
+}
+
+
+	</style>
+	<script src="proun.js"></script>
+	<script src="proun-cv.js"></script>
+<script>
+
+window.addEventListener('DOMContentLoaded', async function() {
+	await ProunLib.waitForReady();
+	init();
+
+	// アップローダーのイベント追加
+	var uploader = document.getElementById('uploader');
+	uploader.addEventListener('change', function(evt) {
+		var file = uploader.files[0];
+		if (!file) return;
+		var reader = new FileReader();
+		reader.onload = function(e) {
+			var dataUrl = e.target.result;
+			showUploadedImage(dataUrl);
+		};
+		reader.readAsDataURL(file);
+	});
+});
+
+var imageList = [
+	"images/1.jpg",
+	"images/2.jpg",
+	"images/3.jpg",
+	"images/4.jpg",
+	"images/5.jpg",
+	"images/6.jpg",
+	"images/7.jpg",
+	"images/8.jpg",
+	"images/9.jpg",
+	"images/10.jpg"
+];
+var _canvas;
+var _defaultIndex = 0;
+
+var init = function() {
+	var cvs = document.getElementById("cvs");
+	cvs.width = window.innerWidth;
+	cvs.height = window.innerHeight;
+	_canvas = new Proun.Canvas(cvs);
+
+	var menu = document.getElementById("menu");
+	menu.innerHTML = "";
+	for (var i = 0; i < imageList.length; i++) {
+		var op = document.createElement("option");
+		op.value = i;
+		op.textContent = "画像 " + (i+1);
+		if (i == _defaultIndex) {
+			op.selected = true;
+		}
+		menu.appendChild(op);
+	}
+	initWithIndex(_defaultIndex);
+
+	menu.addEventListener("change", function(evt) {
+		initWithIndex(parseInt(menu.value));
+	});
+	window.addEventListener("keydown", onKeyDown);
+	window.requestAnimationFrame(onFrameUpdate);
+};
+
+var initWithIndex = async function(index) {
+	_canvas.elements = [];
+	var imgUrl = imageList[index];
+
+	try {
+		const result = await ProunLib.analyzeImage(imgUrl, {
+			minLines: 2,
+			maxLines: 4,
+			colorCount: 8
+		});
+
+		var imageWidth = _canvas.width / 3;
+		var scale = imageWidth / result.width;
+		var imageHeight = result.height * scale;
+		var xOffset = _canvas.width / 2 - imageWidth / 2;
+		var yOffset = (_canvas.height - imageHeight) / 2;
+		var nLines = result.lines.length;
+
+		_canvas.bgColor = result.colors[0].getRGB();
+		for (var i = 0; i < nLines; i++) {
+			var polygon = new Proun.SplitPlane(result.lines[i].r * scale, result.lines[i].th, xOffset, yOffset, _canvas.width, _canvas.height);
+			var idx = (i + 1) % result.colors.length;
+			if (idx == 0) idx = 1;
+			polygon.color = result.colors[idx].getRGB();
+			polygon.gradientScale = 0.25;
+			_canvas.addElementAt(polygon, 0);
+			polygon.appear({ delay: i * 500 });
+		}
+
+		var img = new Proun.Image(imgUrl, xOffset, yOffset, imageWidth, imageHeight);
+		_canvas.addElement(img);
+
+	} catch (e) {
+		alert('解析エラー: ' + e.message);
+	}
+};
+
+var onFrameUpdate = function(ts) {
+	window.requestAnimationFrame(onFrameUpdate);
+};
+
+var KEYS = {
+	A: 65,
+	L: 76,
+	P: 80,
+	R: 82,
+	S: 83,
+	SPACE: 32,
+	ZERO: 48,
+	ONE: 49,
+	TWO: 50,
+	THREE: 51,
+	FOUR: 52,
+	FIVE: 53,
+	SIX: 54,
+	SEVEN: 55,
+	EIGHT: 56,
+};
+
+var startAnimation = function() {
+	// var duration = 2000;
+	for (var i = 0; i < _canvas.elements.length; i++) {
+		var el = _canvas.elements[i];
+		// var reverse = Math.random() < 0.5;
+
+		if (el instanceof Proun.SplitPlane) {
+			el.appear({ delay: i * 500 });
+		}
+	}
+};
+
+var rotate = function() {
+	var cx = _canvas.width / 4;
+	var cy = _canvas.height / 2;
+
+	for (var i = 0; i < _canvas.elements.length; i++) {
+		var el = _canvas.elements[i];
+		if (el instanceof Proun.SplitPlane) {
+			var to = (Math.random() < 0.5) ? Math.PI * 2 : -Math.PI * 2;
+			//var to = (i % 2 == 0) ? Math.PI * 2 : -Math.PI * 2;
+			el.rotateTo(cx, cy, 0, to);
+		}
+	}	
+};
+
+var onKeyDown = function(evt) {
+	switch(evt.which) {
+		case KEYS.A:
+			startAnimation();
+			break;
+		case KEYS.R:
+			rotate();
+			break;
+		default:
+			break;
+	} 
+};
+
+// アップロード画像用の表示関数
+function showUploadedImage(dataUrl) {
+	_canvas.elements = [];
+	var imageWidth = _canvas.width / 3;
+	var xOffset = _canvas.width / 2 - imageWidth / 2;
+	var yOffset = (_canvas.height - imageWidth) / 2;
+
+	ProunLib.analyzeImage(dataUrl, {
+		minLines: 2,
+		maxLines: 4,
+		colorCount: 8
+	}).then(function(result) {
+		var scale = imageWidth / result.width;
+		var imageHeight = result.height * scale;
+		var nLines = result.lines.length;
+
+		_canvas.bgColor = result.colors[0].getRGB();
+		for (var i = 0; i < nLines; i++) {
+			var polygon = new Proun.SplitPlane(result.lines[i].r * scale, result.lines[i].th, xOffset, yOffset, _canvas.width, _canvas.height);
+			var idx = (i + 1) % result.colors.length;
+			if (idx == 0) idx = 1;
+			polygon.color = result.colors[idx].getRGB();
+			polygon.gradientScale = 0.25;
+			_canvas.addElementAt(polygon, 0);
+			polygon.appear({ delay: i * 500 });
+		}
+
+		var img = new Proun.Image(dataUrl, xOffset, yOffset, imageWidth, imageHeight);
+		_canvas.addElement(img);
+	}).catch(function(e) {
+		alert('解析エラー: ' + e.message);
+	});
+}
+
+</script>
+
+</head>
+<body>
+	<div id="toolbar">
+		<select id="menu"></select>
+		<input type="file" id="uploader" accept="image/*">
+	</div>
+	<canvas id="cvs"></canvas>
+</body>
+</html>
